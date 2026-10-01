@@ -1,0 +1,92 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: fleetiq-backend
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/fleetiq}
+    username: ${DB_USER:fleetiq}
+    password: ${DB_PASSWORD:fleetiq}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none          # schema is owned by Flyway (db/migration)
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      ssl:
+        enabled: ${REDIS_SSL:false}   # Upstash Redis requires SSL: set REDIS_SSL=true when deploying
+      timeout: 2s
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:29092}
+    # Local Docker uses an unauthenticated broker (PLAINTEXT). A managed broker such as Upstash
+    # needs SASL_SSL with a username/password: set these three env vars only when deploying.
+    security:
+      protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+    properties:
+      sasl.mechanism: ${KAFKA_SASL_MECHANISM:PLAIN}
+      sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        max.block.ms: 3000      # never hang an HTTP request if Kafka is down
+    consumer:
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      missing-topics-fatal: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    com.fleetiq: INFO
+    org.apache.kafka: WARN
+
+app:
+  instance-id: ${random.uuid}
+  timezone: Asia/Kolkata
+  cors-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:3000}
+  jwt:
+    secret: ${JWT_SECRET:MEXArd9EFDgEbsn/iiSM0rGQVTmsRFPAj8Wj7sP2CxLMsXDsGsF05mvjU5BmFpxn}
+    expiration-minutes: 720
+  ml:
+    base-url: ${ML_SERVICE_URL:http://localhost:8000}
+    timeout-ms: 1500
+  seed:
+    enabled: ${SEED_DATA:true}
+  topics:
+    vehicle-searches: fleetiq.vehicle-searches
+    booking-events: fleetiq.booking-events
+    notifications: fleetiq.notifications
+  pricing:
+    surge-threshold: 0.40     # demand above this starts raising prices
+    surge-slope: 1.10         # multiplier = 1 + slope * (demand - threshold)
+    max-multiplier: 2.00
+    weekend-premium: 0.10
+    tax-rate: 0.18
+    deposit: 2000
+    high-risk-deposit-factor: 2.0
+    late-fee-per-hour: 250
+    grace-minutes: 30
+    hold-minutes: 10
